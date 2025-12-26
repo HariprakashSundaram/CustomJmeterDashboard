@@ -1,0 +1,90 @@
+import java.net.URL
+import java.net.HttpURLConnection
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+
+// Thread-safe storage for TPS counters (shared across threads)
+if (props.get("tpsCounters") == null) {
+    props.put("tpsCounters", new ConcurrentHashMap<Long, AtomicInteger>())
+}
+
+// Collect JMeter metrics
+def label        = prev.getSampleLabel()
+def responseTime = prev.getTime()
+def success      = prev.isSuccessful() ? 1 : 0
+def threadCount  = ctx.getThreadGroup().getNumberOfThreads()
+def timeStamp    = (System.currentTimeMillis() / 1000).toLong()  // seconds
+
+// --- Calculate TPS correctly ---
+def tpsCounters = props.get("tpsCounters") as ConcurrentHashMap<Long, AtomicInteger>
+def counter = tpsCounters.computeIfAbsent(timeStamp, { new AtomicInteger(0) })
+counter.incrementAndGet()
+
+// Fetch TPS for this second (aggregated)
+def tps = counter.get()
+
+// Error percentage (per sample)
+def errorPct = success ? 0.0 : 100.0
+def status_code = prev.getResponseCode()
+def received_bytes = prev.getBytes()
+def sent_bytes = prev.getSentBytes()
+def test_id = vars.get("test_id") ?: "TestRun_" + new Date().format("yyyyMMdd_HHmmss")
+
+// Decide whether to include error_message
+def includeErrorMessage = false
+def error_message = ""
+if (!prev.isSuccessful()) {
+    if (!(status_code.contains("Non HTTP response code: org.apache.http.conn.HttpHostConnectException")) ||
+        !(status_code.contains("Non HTTP response code: java.io.InterruptedIOException"))) {
+        def msg = prev.getResponseMessage() ?: ""
+        def wordCount = msg.trim().isEmpty() ? 0 : msg.trim().split(/\s+/).length
+        if (wordCount <= 30) {
+            includeErrorMessage = true
+            error_message = msg
+        }
+    }
+}
+
+// ✅ Skip sending if label is null or empty
+if (label != null && !label.trim().isEmpty()) {
+    // Build JSON safely
+    def sb = new StringBuilder()
+    sb.append("{")
+    sb.append("\"label\":\"${label}\",")
+    sb.append("\"thread_count\":${threadCount},")
+    sb.append("\"success\":${success},")
+    sb.append("\"tps\":${tps},")
+    sb.append("\"response_time\":${responseTime},")
+    sb.append("\"errorPct\":${errorPct},")
+    sb.append("\"timestamp\":${timeStamp},")
+    sb.append("\"status_code\":\"${status_code}\",")
+    sb.append("\"received_bytes\":${received_bytes},")
+    sb.append("\"sent_bytes\":${sent_bytes},")
+    sb.append("\"test_id\":\"${test_id}\"")
+
+    if (includeErrorMessage) {
+        sb.append(",\"error_message\":\"${error_message.replaceAll('"', '\\"')}\"")
+    }
+
+    sb.append("}")
+    def json = sb.toString()
+
+    try {
+        def url = new URL("http://localhost:5000/metrics")
+        def conn = url.openConnection() as HttpURLConnection
+        conn.setDoOutput(true)
+        conn.setRequestMethod("POST")
+        conn.setRequestProperty("Content-Type", "application/json")
+
+        conn.outputStream.withWriter("UTF-8") { it.write(json) }
+
+        log.info("Posted metrics: " + json)
+        log.info("Response code: " + conn.responseCode)
+
+        conn.disconnect()
+    } catch (Exception e) {
+        log.error("Error sending metrics", e)
+    }
+} else {
+    log.info("Skipping metrics because label is null or empty")
+}

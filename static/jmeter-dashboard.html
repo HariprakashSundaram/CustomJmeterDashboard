@@ -1,0 +1,3098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+ 
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        :root {
+            --primary: #9b09df;
+            --secondary: #a24fbe;
+            --primary: #2a5298;
+            --secondary: #667eea;
+            --accent: #e74c3c;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #72459c;
+            --bg: #f4f6fa;
+            --card-bg: #fff;
+            --border-radius: 12px;
+            --shadow: 0 4px 24px rgba(44,62,80,0.08);
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        main {
+            max-width: 1400px;
+            margin: 32px auto;
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 32px 24px 24px 24px;
+        }
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: 0; top: 0; width: 100%; height: 100%;
+            opacity: 0; cursor: pointer;
+        }
+        .file-input-label {
+            display: inline-block;
+            padding: 8px 18px;
+            background: var(--bg);
+            border-radius: 6px;
+            border: 1px solid #e0e6ed;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #34495e;
+            transition: background 0.2s;
+        }
+        .file-input-label:hover {
+            background: #eaf1fb;
+        }
+        .export-btn, .live-btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 6px;
+            background: var(--accent);
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .export-btn:hover, .live-btn:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+        .period-filter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .period-filter label {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        .period-filter select {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #e0e6ed;
+            background: var(--bg);
+            font-size: 1rem;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 18px;
+            margin-bottom: 32px;
+        }
+        .metric-card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 20px 16px;
+            text-align: center;
+            border-left: 5px solid var(--info);
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .metric-card:hover {
+            box-shadow: 0 8px 32px rgba(44,62,80,0.12);
+            transform: translateY(-3px);
+        }
+        .metric-card.test-time-card { border-left-color: var(--primary);font-size: smaller;}
+        .metric-value { font-size: 2rem; font-weight: 700; color: var(--primary);}
+        .metric-label { font-size: 0.95rem; color: #7f8c8d; margin-top: 6px;}
+        .test-time-info { margin-bottom: 10px;}
+        .test-time-item { display: flex; justify-content: space-between; font-size: 0.95rem;}
+        .test-time-label { color: #7f8c8d; font-weight: 500;}
+        .test-time-value { color: var(--primary); font-weight: 600;}
+        section.stats-table, section.error-section {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 28px;
+            overflow: hidden;
+        }
+        section.stats-table h3, section.error-section h3 {
+            background: var(--primary);
+            color: #fff;
+            margin: 0;
+            padding: 14px 20px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 400px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.98rem;
+        }
+        th, td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f0f2f5;
+        }
+        th {
+            background: var(--info);
+            color: #fff;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        tr:hover { background: #f8f9fa; }
+        .error-row { color: var(--danger); background: #fff; }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        .chart-container {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 18px 14px 10px 14px;
+            position: relative;
+            min-width: 0;
+        }
+        .chart-container h3 {
+            font-size: 1rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        .chart-wrapper { height: 260px; }
+        .maximize-btn {
+            position: absolute;
+            top: 12px; right: 12px;
+            background: var(--info);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 28px; height: 28px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s, transform 0.2s;
+            z-index: 2;
+        }
+        .maximize-btn:hover { background: #2980b9; transform: scale(1.1);}
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.8);
+        }
+        .modal-content {
+            background: #fff;
+            margin: 2% auto;
+            padding: 24px;
+            border-radius: var(--border-radius);
+            width: 96vw; max-width: 1200px;
+            height: 90vh;
+            position: relative;
+        }
+        .close-modal {
+            position: absolute;
+            top: 16px; right: 24px;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 36px; height: 36px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        .modal-chart { width: 100%; height: calc(100% - 60px);}
+        .loading {
+            text-align: center;
+            padding: 60px 0;
+            color: #7f8c8d;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--info);
+            border-radius: 50%;
+            width: 40px; height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }
+        @media (max-width: 900px) {
+            main { padding: 12px 2vw; }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <header>
+        <div class="title">JMeter Dashboard</div>
+        <div class="toolbar">
+            <div class="file-input-wrapper">
+                <label class="file-input-label" id="fileInputLabel" for="jtlFile">Choose JTL File...</label>
+                <input type="file" id="jtlFile" accept=".jtl,.csv" onchange="handleFileUpload(event)">
+            </div>
+            
+            <button class="export-btn" onclick="exportToPDF()">Export to PDF</button>
+            <button class="export-btn" onclick="exportToImage()">Export to Image</button>
+        </div>
+    </header>
+    <script>
+    async function captureFullPage() {
+      const { jsPDF } = window.jspdf;
+
+      // Target element
+      const content = document.getElementById("content");
+
+      // Render full content as canvas
+      const canvas = await html2canvas(content, {
+        scale: 2, // higher = better quality
+        useCORS: true
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+
+      // Convert px to mm (PDF default is 96 DPI, jsPDF uses pt but mm is easier)
+      const pxToMm = px => px * 0.264583;
+
+      const pdfWidth = pxToMm(1580); // fixed width
+      const pdfHeight = pxToMm(canvas.height); // full content height
+
+      // Create PDF with custom size
+      const pdf = new jsPDF("p", "mm", [pdfWidth, pdfHeight]);
+
+      // Add image
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+
+      // Save file
+      pdf.save("fullpage.pdf");
+    }
+  </script>
+ 
+    <div id="loading" class="loading" style="display: none;">
+        <div class="spinner"></div>
+        <p>Processing JTL file...</p>
+    </div>
+
+    <div id="dashboard-content">
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card test-time-card">
+                <div class="test-time-info">
+                    <div class="test-time-item">
+                        <span class="test-time-label">Start:</span><br>
+                        <span class="test-time-value" id="testStartTime">-</span>
+                    </div>
+                    <div class="test-time-item">
+                        <span class="test-time-label">End:</span><br>
+                        <span class="test-time-value" id="testEndTime">-</span>
+                    </div>
+                    <div class="test-time-item">
+                        <span class="test-time-label">Duration:</span><br>
+                        <span class="test-time-value" id="testDuration">-</span>
+                    </div>
+                </div>
+                <div class="metric-label">Test Timeline</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="totalSamples">-</div>
+                <div class="metric-label">Total Samples</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="errorRate">-</div>
+                <div class="metric-label">Error Rate</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="avgResponseTime">-</div>
+                <div class="metric-label">Avg Response Time</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="throughput">-</div>
+                <div class="metric-label">Throughput/sec</div>
+            </div>
+        </div>
+
+        <!-- Detailed Statistics Table -->
+        <section class="stats-table">
+            <h3>📋 Detailed Statistics by Request</h3>
+            <div class="table-wrapper">
+                <table id="statsTable">
+                    <thead>
+                        <tr>
+                            <th>Label</th>
+                            <th>Samples</th>
+                            <th>Error</th>
+                            <th>Error %</th>
+                            <th>Average (ms)</th>
+                            <th>Median (ms)</th>
+                            <th>90th Pct (ms)</th>
+                            <th>95th Pct (ms)</th>
+                            <th>99th Pct (ms)</th>
+                            <th>Min (ms)</th>
+                            <th>Max (ms)</th>
+                            <th>Throughput</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statsTableBody">
+                        <tr>
+                            <td colspan="12" style="text-align: center; padding: 40px; color: #7f8c8d;">
+                                📁 Please upload a JTL file to view detailed statistics
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid">
+            <!-- Chart containers, same IDs for JS -->
+            <div class="chart-container">
+                <button class="maximize-btn" onclick="maximizeChart('responseTimeChart', 'Average Response Time Over Time')">⛶</button>
+                <h3>📈 Average Response Time Over Time</h3>
+                <div class="chart-wrapper"><canvas id="responseTimeChart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <button class="maximize-btn" onclick="maximizeChart('samplerChart', 'Top Samplers By Response Time')">⛶</button>
+                <h3>📊 Top Samplers By Response Time</h3>
+                <div class="chart-wrapper"><canvas id="samplerChart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <button class="maximize-btn" onclick="maximizeChart('individualResponseChart', 'Avg Response Time By Sampler')">⛶</button>
+                <h3>📈 Avg Response Time By Sampler</h3>
+                <div class="chart-wrapper"><canvas id="individualResponseChart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <button class="maximize-btn" onclick="maximizeChart('performanceAnalysisChart', 'Avg Response Time vs Throughput vs Error Rate')">⛶</button>
+                <h3>📈 Avg Response Time vs Throughput vs Error Rate</h3>
+                <div class="chart-wrapper"><canvas id="performanceAnalysisChart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <button class="maximize-btn" onclick="maximizeChart('throughputChart', 'Throughput Over Time')">⛶</button>
+                <h3>🚀 Throughput Over Time</h3>
+                <div class="chart-wrapper"><canvas id="throughputChart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <button class="maximize-btn" onclick="maximizeChart('threadsChart', 'Active Threads Over Time')">⛶</button>
+                <h3>👥 Active Threads Over Time</h3>
+                <div class="chart-wrapper"><canvas id="threadsChart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <button class="maximize-btn" onclick="maximizeChart('responseCodesChart', 'Response Codes Distribution')">⛶</button>
+                <h3>🎯 Response Codes Distribution</h3>
+                <div class="chart-wrapper"><canvas id="responseCodesChart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <button class="maximize-btn" onclick="maximizeChart('percentilesChart', 'Response Time Percentiles Over Time')">⛶</button>
+                <h3>📊 Response Time Percentiles Over Time</h3>
+                <div class="chart-wrapper"><canvas id="percentilesChart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <button class="maximize-btn" onclick="maximizeChart('httpCodesTimeChart', 'HTTP Codes Over Time')">⛶</button>
+                <h3>🔢 HTTP Codes Over Time</h3>
+                <div class="chart-wrapper"><canvas id="httpCodesTimeChart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <button class="maximize-btn" onclick="maximizeChart('errorRateChart', 'Error Rate Over Time')">⛶</button>
+                <h3>❌ Error Rate Over Time</h3>
+                <div class="chart-wrapper"><canvas id="errorRateChart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <button class="maximize-btn" onclick="maximizeChart('connectionTimeChart', 'Connection Time Over Time')">⛶</button>
+                <h3>🔗 Connection Time Over Time</h3>
+                <div class="chart-wrapper"><canvas id="connectionTimeChart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <button class="maximize-btn" onclick="maximizeChart('bytesReceivedChart', 'Bytes Received Over Time')">⛶</button>
+                <h3>📥 Bytes Received Over Time</h3>
+                <div class="chart-wrapper"><canvas id="bytesReceivedChart"></canvas></div>
+            </div>
+<!--             
+            <h2 style="grid-column: 1 / -1; margin: 30px 0 20px 0;">📊 Resource Monitoring</h2>
+            <div class="chart-container">
+                <button class="maximize-btn" onclick="maximizeChart('cpuUsageChart', 'CPU Usage Over Time')">⛶</button>
+                <h3>🖥️ CPU Usage Over Time</h3>
+                <div class="chart-wrapper"><canvas id="cpuUsageChart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <button class="maximize-btn" onclick="maximizeChart('memoryUsageChart', 'Memory Usage Over Time')">⛶</button>
+                <h3>💾 Memory Usage Over Time</h3>
+                <div class="chart-wrapper"><canvas id="memoryUsageChart"></canvas></div>
+            </div> -->
+        </div>
+
+        <!-- Error Details Table -->
+        <section class="error-section">
+            <h3>❌ Detailed Errors</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sampler</th>
+                            <th>Response Code</th>
+                            <th>Error Message</th>
+                            <th>Error Count</th>
+                            <th>Error %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 40px; color: #7f8c8d;">
+                                📁 Please upload a JTL file to view error details
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal for maximized charts -->
+    <div id="chartModal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal()">&times;</button>
+            <h3 id="modalTitle"></h3>
+            <div class="modal-chart">
+                <canvas id="modalChart"></canvas>
+            </div>
+        </div>
+    </div>
+</main>
+    <script>
+        let dashboardData = {
+            samples: [],
+            summary: {},
+            charts: {},
+            systemMetrics: [],
+            qualityGates: []
+        };
+
+        // Initialize charts
+        let charts = {};
+        let modalChart = null;
+        let currentPeriodSeconds = 5; // Default to 5 seconds
+        let isProcessingFile = false; // Flag to prevent duplicate processing
+        let isLiveMode = false; // Flag for live data mode
+        let liveDataInterval = null; // Interval for live data refresh
+
+        function initializeCharts() {
+            // Initialize empty charts that will be populated when JTL is uploaded
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            };
+
+            // Response Time Over Time Chart
+            const responseTimeCtx = document.getElementById('responseTimeChart').getContext('2d');
+            charts.responseTime = new Chart(responseTimeCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Response Time (ms)',
+                        data: [],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Response Time (ms)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Response Time by Sampler (Horizontal Bar Chart)
+            const samplerCtx = document.getElementById('samplerChart').getContext('2d');
+            charts.sampler = new Chart(samplerCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Average Response Time (ms)',
+                        data: [],
+                        backgroundColor: []
+                    }]
+                },
+                options: {
+                    ...chartOptions,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Average Response Time (ms)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Throughput Chart
+            const throughputCtx = document.getElementById('throughputChart').getContext('2d');
+            charts.throughput = new Chart(throughputCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Throughput (req/s)',
+                        data: [],
+                        borderColor: '#9b59b6',
+                        backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Throughput (req/s)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Active Threads Chart
+            const threadsCtx = document.getElementById('threadsChart').getContext('2d');
+            charts.threads = new Chart(threadsCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Active Threads',
+                        data: [],
+                        borderColor: '#2ecc71',
+                        backgroundColor: 'rgba(46, 204, 113, 0.3)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Active Threads'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Response Codes Pie Chart
+            const codesCtx = document.getElementById('responseCodesChart').getContext('2d');
+            charts.responseCodes = new Chart(codesCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: ['#2ecc71', '#e74c3c', '#f39c12', '#3498db', '#9b59b6']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+
+            // Response Time Percentiles Chart
+            const percentilesCtx = document.getElementById('percentilesChart').getContext('2d');
+            charts.percentiles = new Chart(percentilesCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            align: 'start'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Response Time (ms)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Avg Response Time By Sampler Chart (Time Series)
+            const individualResponseCtx = document.getElementById('individualResponseChart').getContext('2d');
+            charts.individualResponse = new Chart(individualResponseCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            align: 'start'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Average Response Time (ms)'
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 4,
+                            hoverRadius: 6
+                        }
+                    }
+                }
+            });
+
+            // HTTP Codes Over Time Chart
+            const httpCodesTimeCtx = document.getElementById('httpCodesTimeChart').getContext('2d');
+            charts.httpCodesTime = new Chart(httpCodesTimeCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            align: 'start'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Request Count'
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 4,
+                            hoverRadius: 6
+                        }
+                    }
+                }
+            });
+
+            // // CPU Usage Chart
+            // const cpuUsageCtx = document.getElementById('cpuUsageChart').getContext('2d');
+            // charts.cpuUsage = new Chart(cpuUsageCtx, {
+            //     type: 'line',
+            //     data: {
+            //         labels: [],
+            //         datasets: [{
+            //             label: 'CPU Usage (%)',
+            //             data: [],
+            //             borderColor: '#e74c3c',
+            //             backgroundColor: 'rgba(231, 76, 60, 0.1)',
+            //             fill: true,
+            //             tension: 0.4,
+            //             borderWidth: 2
+            //         }]
+            //     },
+            //     options: {
+            //         responsive: true,
+            //         maintainAspectRatio: false,
+            //         plugins: {
+            //             legend: {
+            //                 display: true,
+            //                 position: 'bottom'
+            //             }
+            //         },
+            //         scales: {
+            //             x: {
+            //                 title: {
+            //                     display: true,
+            //                     text: 'Time'
+            //                 }
+            //             },
+            //             y: {
+            //                 beginAtZero: true,
+            //                 max: 100,
+            //                 title: {
+            //                     display: true,
+            //                     text: 'CPU Usage (%)'
+            //                 }
+            //             }
+            //         },
+            //         elements: {
+            //             point: {
+            //                 radius: 4,
+            //                 hoverRadius: 6
+            //             }
+            //         }
+            //     }
+            // });
+
+            // // Memory Usage Chart
+            // const memoryUsageCtx = document.getElementById('memoryUsageChart').getContext('2d');
+            // charts.memoryUsage = new Chart(memoryUsageCtx, {
+            //     type: 'line',
+            //     data: {
+            //         labels: [],
+            //         datasets: [{
+            //             label: 'Memory Usage (%)',
+            //             data: [],
+            //             borderColor: '#9b59b6',
+            //             backgroundColor: 'rgba(155, 89, 182, 0.1)',
+            //             fill: true,
+            //             tension: 0.4,
+            //             borderWidth: 2
+            //         }]
+            //     },
+            //     options: {
+            //         responsive: true,
+            //         maintainAspectRatio: false,
+            //         plugins: {
+            //             legend: {
+            //                 display: true,
+            //                 position: 'bottom'
+            //             }
+            //         },
+            //         scales: {
+            //             x: {
+            //                 title: {
+            //                     display: true,
+            //                     text: 'Time'
+            //                 }
+            //             },
+            //             y: {
+            //                 beginAtZero: true,
+            //                 max: 100,
+            //                 title: {
+            //                     display: true,
+            //                     text: 'Memory Usage (%)'
+            //                 }
+            //             }
+            //         },
+            //         elements: {
+            //             point: {
+            //                 radius: 4,
+            //                 hoverRadius: 6
+            //             }
+            //         }
+            //     }
+            // });
+
+            // Performance Analysis Chart (Avg Response Time vs Throughput vs Error Rate)
+            const performanceAnalysisCtx = document.getElementById('performanceAnalysisChart').getContext('2d');
+            charts.performanceAnalysis = new Chart(performanceAnalysisCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Avg Response Time (ms)',
+                        data: [],
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        fill: false,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Throughput (req/sec)',
+                        data: [],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        fill: false,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        yAxisID: 'y1'
+                    }, {
+                        label: 'Error Rate (%)',
+                        data: [],
+                        borderColor: '#f39c12',
+                        backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                        fill: false,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        yAxisID: 'y2'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Response Time (ms)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Throughput (req/sec)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        },
+                        y2: {
+                            type: 'linear',
+                            display: false,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Error Rate (%)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 3,
+                            hoverRadius: 5
+                        }
+                    }
+                }
+            });
+
+            // Error Rate Over Time Chart
+            const errorRateCtx = document.getElementById('errorRateChart').getContext('2d');
+            charts.errorRate = new Chart(errorRateCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Error Rate (%)',
+                        data: [],
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Error Rate (%)'
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 4,
+                            hoverRadius: 6
+                        }
+                    }
+                }
+            });
+
+            // Bytes Received Over Time Chart
+            const bytesReceivedCtx = document.getElementById('bytesReceivedChart').getContext('2d');
+            charts.bytesReceived = new Chart(bytesReceivedCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Bytes Received',
+                        data: [],
+                        borderColor: '#27ae60',
+                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Bytes Received'
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 4,
+                            hoverRadius: 6
+                        }
+                    }
+                }
+            });
+
+            // Connection Time Over Time Chart
+            const connectionTimeCtx = document.getElementById('connectionTimeChart').getContext('2d');
+            charts.connectionTime = new Chart(connectionTimeCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Connection Time (ms)',
+                        data: [],
+                        borderColor: '#8e44ad',
+                        backgroundColor: 'rgba(142, 68, 173, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Connection Time (ms)'
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 4,
+                            hoverRadius: 6
+                        }
+                    }
+                }
+            });
+        }
+
+
+
+        function triggerFileInput() {
+            if (isProcessingFile) {
+                return; // Prevent multiple triggers while processing
+            }
+            const fileInput = document.getElementById('jtlFile');
+            fileInput.click();
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file || isProcessingFile) {
+                return;
+            }
+
+            isProcessingFile = true;
+
+            // Update file name in UI
+            const fileName = file.name.length > 30 ? file.name.substring(0, 30) + '...' : file.name;
+            document.getElementById('fileInputLabel').textContent = fileName;
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('dashboard-content').style.display = 'none';
+
+            // Process file
+            setTimeout(() => {
+                processJTLFile(file);
+            }, 500);
+        }
+
+        function processJTLFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                const content = e.target.result;
+                parseJTLContent(content);
+                updateDashboard();
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard-content').style.display = 'block';
+                } catch (error) {
+                    console.error('Error processing JTL file:', error);
+                    alert('Error processing JTL file. Please check the file format.');
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('dashboard-content').style.display = 'block';
+                } finally {
+                    isProcessingFile = false; // Reset the flag
+                    // Clear the file input to allow re-selecting the same file
+                    document.getElementById('jtlFile').value = '';
+                }
+            };
+            
+            reader.onerror = function() {
+                console.error('Error reading file');
+                alert('Error reading file. Please try again.');
+                isProcessingFile = false;
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard-content').style.display = 'block';
+                document.getElementById('jtlFile').value = '';
+            };
+            
+            reader.readAsText(file);
+        }
+
+        function parseJTLContent(content) {
+            const lines = content.split('\n');
+            if (lines.length < 2) {
+                alert('Invalid JTL file format');
+                return;
+            }
+            
+            const headers = lines[0].split(',').map(h => h.trim());
+            
+            dashboardData.samples = [];
+            const samplerStats = {};
+            const timeData = {};
+            const responseCodes = {};
+            const errorDetails = {};
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                const values = lines[i].split(',');
+                if (values.length < headers.length) continue;
+                
+                const sample = {};
+                headers.forEach((header, index) => {
+                    sample[header] =(index < values.length) ? values[index].trim() : '';
+                });
+                
+                dashboardData.samples.push(sample);
+                
+                // Get sample data using correct JTL column names
+                const label = sample.label || 'Unknown';
+                const responseTime = parseInt(sample.elapsed || sample.Elapsed || 0);
+                const timestamp = parseInt(sample.timeStamp || sample.TimeStamp || 0);
+                const success = (sample.success === 'true' || sample.Success === 'true');
+                const responseCode = sample.responseCode || sample.ResponseCode || 'Unknown';
+                const responseMessage = sample.responseMessage || sample.ResponseMessage || '';
+                const threads = parseInt(sample.allThreads || sample.AllThreads || 1);
+                const latency = parseInt(sample.Latency || sample.latency || 0);
+                const bytes = parseInt(sample.bytes || sample.Bytes || 0);
+                const connectTime = parseInt(sample.Connect || sample.connect || 0);
+                
+                // Calculate stats per sampler
+                if (!samplerStats[label]) {
+                    samplerStats[label] = {
+                        count: 0,
+                        errors: 0,
+                        totalTime: 0,
+                        responseTimes: [],
+                        minTime: Number.MAX_SAFE_INTEGER,
+                        maxTime: 0
+                    };
+                }
+                
+                samplerStats[label].count++;
+                samplerStats[label].totalTime += responseTime;
+                samplerStats[label].responseTimes.push(responseTime);
+                samplerStats[label].minTime = Math.min(samplerStats[label].minTime, responseTime);
+                samplerStats[label].maxTime = Math.max(samplerStats[label].maxTime, responseTime);
+                
+                if (!success) {
+                    samplerStats[label].errors++;
+                    
+                    // Track error details
+                    const errorKey = `${label}-${responseCode}`;
+                    if (!errorDetails[errorKey]) {
+                        errorDetails[errorKey] = {
+                            sampler: label,
+                            responseCode,
+                            message: responseMessage || 'No failure message',
+                            count: 0
+                        };
+                    }
+                    errorDetails[errorKey].count++;
+                }
+                
+                // Track response codes
+                if (!responseCodes[responseCode]) {
+                    responseCodes[responseCode] = 0;
+                }
+                responseCodes[responseCode]++;
+                
+                // Time-based data for charts
+                const timeKey = Math.floor(timestamp / (currentPeriodSeconds * 1000)) * (currentPeriodSeconds * 1000); // Group by selected period
+                if (!timeData[timeKey]) {
+                    timeData[timeKey] = {
+                        responseTimes: [],
+                        requests: 0,
+                        threads: 0,
+                        timestamp: timeKey,
+                        totalRequests: 0,
+                        errorCount: 0,
+                        bytesReceived: [],
+                        connectionTimes: []
+                    };
+                }
+                timeData[timeKey].responseTimes.push(responseTime);
+                timeData[timeKey].requests++;
+                timeData[timeKey].threads = Math.max(timeData[timeKey].threads, threads);
+                timeData[timeKey].totalRequests++;
+                if (!success) {
+                    timeData[timeKey].errorCount++;
+                }
+                timeData[timeKey].bytesReceived.push(bytes);
+                timeData[timeKey].connectionTimes.push(connectTime);
+            }
+            
+            dashboardData.samplerStats = samplerStats;
+            dashboardData.timeData = Object.values(timeData).sort((a, b) => a.timestamp - b.timestamp);
+            dashboardData.responseCodes = responseCodes;
+            dashboardData.errorDetails = Object.values(errorDetails);
+            
+            calculateSummaryStats();
+        }
+
+        function calculateSummaryStats() {
+            const stats = dashboardData.samplerStats;
+            let totalSamples = 0;
+            let totalErrors = 0;
+            let totalTime = 0;
+            
+            Object.values(stats).forEach(stat => {
+                totalSamples += stat.count;
+                totalErrors += stat.errors;
+                totalTime += stat.totalTime;
+            });
+            
+            // Calculate test timeline from samples
+            let testStartTime = null;
+            let testEndTime = null;
+            let testDuration = '-';
+            
+            if (dashboardData.samples && dashboardData.samples.length > 0) {
+                const timestamps = dashboardData.samples.map(sample => parseInt(sample.timeStamp || 0)).filter(ts => ts > 0);
+                if (timestamps.length > 0) {
+                    testStartTime = Math.min(...timestamps);
+                    testEndTime = Math.max(...timestamps);
+                    
+                    const durationMs = testEndTime - testStartTime;
+                    testDuration = formatDuration(durationMs);
+                }
+            }
+            
+            // Calculate throughput from time data
+            let throughput = 0;
+            if (dashboardData.timeData && dashboardData.timeData.length > 1) {
+                const timeSpanSeconds = (dashboardData.timeData[dashboardData.timeData.length - 1].timestamp - 
+                                       dashboardData.timeData[0].timestamp) / 1000;
+                if (timeSpanSeconds > 0) {
+                    throughput = (totalSamples / timeSpanSeconds).toFixed(2);
+                }
+            }
+            
+            dashboardData.summary = {
+                totalSamples,
+                totalErrors,
+                errorRate: totalSamples > 0 ? (totalErrors / totalSamples * 100).toFixed(2) : '0.00',
+                avgResponseTime: totalSamples > 0 ? Math.round(totalTime / totalSamples) : 0,
+                throughput: throughput || '0.00',
+                testStartTime: testStartTime ? new Date(testStartTime).toLocaleString() : '-',
+                testEndTime: testEndTime ? new Date(testEndTime).toLocaleString() : '-',
+                testDuration: testDuration
+            };
+        }
+
+        function formatDuration(milliseconds) {
+            if (milliseconds <= 0) return '-';
+            
+            const seconds = Math.floor(milliseconds / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${seconds % 60}s`;
+            } else {
+                return `${seconds}s`;
+            }
+        }
+
+        function updateDashboard() {
+            const summary = dashboardData.summary;
+            
+            // Update test timeline
+            document.getElementById('testStartTime').textContent = summary.testStartTime;
+            document.getElementById('testEndTime').textContent = summary.testEndTime;
+            document.getElementById('testDuration').textContent = summary.testDuration;
+            
+            // Update metrics
+            document.getElementById('totalSamples').textContent = summary.totalSamples.toLocaleString();
+            document.getElementById('errorRate').textContent = summary.errorRate + '%';
+            document.getElementById('avgResponseTime').textContent = summary.avgResponseTime + ' ms';
+            document.getElementById('throughput').textContent = summary.throughput;
+            
+            updateStatsTable();
+            updateCharts();
+        }
+
+        function updateStatsTable() {
+            const tbody = document.getElementById('statsTableBody');
+            tbody.innerHTML = '';
+            
+            // Calculate overall percentiles and min/max
+            let allResponseTimes = [];
+            let overallMinTime = Number.MAX_SAFE_INTEGER;
+            let overallMaxTime = 0;
+            
+            // Collect all response times from all samplers
+            Object.values(dashboardData.samplerStats).forEach(stats => {
+                allResponseTimes = allResponseTimes.concat(stats.responseTimes);
+                if (stats.minTime < overallMinTime && stats.minTime !== Number.MAX_SAFE_INTEGER) {
+                    overallMinTime = stats.minTime;
+                }
+                if (stats.maxTime > overallMaxTime) {
+                    overallMaxTime = stats.maxTime;
+                }
+            });
+            
+            // Calculate overall percentiles
+            const sortedOverallTimes = allResponseTimes.sort((a, b) => a - b);
+            const overallMedian = sortedOverallTimes.length > 0 ? calculatePercentile(sortedOverallTimes, 50) : 0;
+            const overallPct90 = sortedOverallTimes.length > 0 ? calculatePercentile(sortedOverallTimes, 90) : 0;
+            const overallPct95 = sortedOverallTimes.length > 0 ? calculatePercentile(sortedOverallTimes, 95) : 0;
+            const overallPct99 = sortedOverallTimes.length > 0 ? calculatePercentile(sortedOverallTimes, 99) : 0;
+            
+            // Fix overall min/max values
+            const finalOverallMinTime = overallMinTime === Number.MAX_SAFE_INTEGER ? 0 : overallMinTime;
+            
+            // Add OVERALL row first
+            const overallRow = document.createElement('tr');
+            overallRow.innerHTML = `
+                <td><strong>OVERALL</strong></td>
+                <td><strong>${dashboardData.summary.totalSamples.toLocaleString()}</strong></td>
+                <td><strong>${dashboardData.summary.totalErrors.toLocaleString()}</strong></td>
+                <td><strong>${dashboardData.summary.errorRate}%</strong></td>
+                <td><strong>${dashboardData.summary.avgResponseTime}</strong></td>
+                <td><strong>${overallMedian}</strong></td>
+                <td><strong>${overallPct90}</strong></td>
+                <td><strong>${overallPct95}</strong></td>
+                <td><strong>${overallPct99}</strong></td>
+                <td><strong>${finalOverallMinTime}</strong></td>
+                <td><strong>${overallMaxTime}</strong></td>
+                <td><strong>${dashboardData.summary.throughput}</strong></td>
+            `;
+            tbody.appendChild(overallRow);
+            
+            // Add individual sampler rows
+            Object.entries(dashboardData.samplerStats).forEach(([label, stats]) => {
+                const row = document.createElement('tr');
+                const errorRate = stats.count > 0 ? (stats.errors / stats.count * 100).toFixed(2) : '0.00';
+                const avgTime = stats.count > 0 ? Math.round(stats.totalTime / stats.count) : 0;
+                
+                // Calculate throughput for this sampler
+                let samplerThroughput = '0.00';
+                if (dashboardData.samples && dashboardData.samples.length > 0) {
+                    // Get timestamps for this specific sampler
+                    const samplerTimestamps = dashboardData.samples
+                        .filter(sample => sample.label === label)
+                        .map(sample => parseInt(sample.timeStamp || 0))
+                        .filter(ts => ts > 0);
+                    
+                    if (samplerTimestamps.length > 1) {
+                        const minTime = Math.min(...samplerTimestamps);
+                        const maxTime = Math.max(...samplerTimestamps);
+                        const timeSpanSeconds = (maxTime - minTime) / 1000;
+                        
+                        if (timeSpanSeconds > 0) {
+                            samplerThroughput = (samplerTimestamps.length / timeSpanSeconds).toFixed(2);
+                        }
+                    }
+                }
+                
+                // Calculate percentiles
+                const sortedTimes = stats.responseTimes.sort((a, b) => a - b);
+                const median = sortedTimes.length > 0 ? calculatePercentile(sortedTimes, 50) : 0;
+                const pct90 = sortedTimes.length > 0 ? calculatePercentile(sortedTimes, 90) : 0;
+                const pct95 = sortedTimes.length > 0 ? calculatePercentile(sortedTimes, 95) : 0;
+                const pct99 = sortedTimes.length > 0 ? calculatePercentile(sortedTimes, 99) : 0;
+                
+                // Fix min/max values
+                const minTime = stats.minTime === Number.MAX_SAFE_INTEGER ? 0 : stats.minTime;
+                const maxTime = stats.maxTime;
+                
+                if (parseFloat(errorRate) > 0) {
+                    row.classList.add('error-row');
+                }
+                
+                row.innerHTML = `
+                    <td>${label}</td>
+                    <td>${stats.count.toLocaleString()}</td>
+                    <td>${stats.errors.toLocaleString()}</td>
+                    <td>${errorRate}%</td>
+                    <td>${avgTime}</td>
+                    <td>${median}</td>
+                    <td>${pct90}</td>
+                    <td>${pct95}</td>
+                    <td>${pct99}</td>
+                    <td>${minTime}</td>
+                    <td>${maxTime}</td>
+                    <td>${samplerThroughput}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+        
+        function calculatePercentile(sortedArray, percentile) {
+            if (sortedArray.length === 0) return 0;
+            const index = (percentile / 100) * (sortedArray.length - 1);
+            const lower = Math.floor(index);
+            const upper = Math.ceil(index);
+            const weight = index % 1;
+            
+            if (upper >= sortedArray.length) return sortedArray[sortedArray.length - 1];
+            return Math.round(sortedArray[lower] * (1 - weight) + sortedArray[upper] * weight);
+        }
+
+        function updateCharts() {
+            updateResponseTimeChart();
+            updateSamplerChart();
+            updateIndividualResponseChart();
+            updateThroughputChart();
+            updateThreadsChart();
+            updateResponseCodesChart();
+            updatePercentilesChart();
+            updateHttpCodesTimeChart();
+            updateSystemMetricsCharts();
+            updatePerformanceAnalysisCharts();
+            addQualityGateAreas();
+            updateErrorTable();
+            // updateOverallScoreTable();
+            // updateQualityGateTable();
+        }
+
+        function updateResponseTimeChart() {
+            const timeLabels = [];
+            const responseTimeData = [];
+            
+            dashboardData.timeData.forEach(timePoint => {
+                const date = new Date(timePoint.timestamp);
+                timeLabels.push(date.toLocaleTimeString());
+                
+                const avgResponseTime = timePoint.responseTimes.length > 0 ? 
+                    timePoint.responseTimes.reduce((a, b) => a + b, 0) / timePoint.responseTimes.length : 0;
+                responseTimeData.push(Math.round(avgResponseTime));
+            });
+            
+            charts.responseTime.data.labels = timeLabels;
+            charts.responseTime.data.datasets[0].data = responseTimeData;
+            charts.responseTime.update();
+        }
+
+        function updateSamplerChart() {
+            const samplerLabels = [];
+            const samplerData = [];
+            const colors = [];
+            
+            // Sort samplers by average response time (descending)
+            const sortedSamplers = Object.entries(dashboardData.samplerStats)
+                .map(([label, stats]) => ({
+                    label,
+                    avgTime: stats.count > 0 ? Math.round(stats.totalTime / stats.count) : 0,
+                    errorRate: stats.count > 0 ? (stats.errors / stats.count * 100) : 0
+                }))
+                .sort((a, b) => b.avgTime - a.avgTime)
+                .slice(0, 10); // Top 10 slowest
+            
+            sortedSamplers.forEach(sampler => {
+                samplerLabels.push(sampler.label.length > 30 ? sampler.label.substring(0, 30) + '...' : sampler.label);
+                samplerData.push(sampler.avgTime);
+                colors.push(sampler.errorRate > 0 ? '#e74c3c' : '#2ecc71');
+            });
+            
+            charts.sampler.data.labels = samplerLabels;
+            charts.sampler.data.datasets[0].data = samplerData;
+            charts.sampler.data.datasets[0].backgroundColor = colors;
+            charts.sampler.update();
+        }
+
+        function updateIndividualResponseChart() {
+            if (!dashboardData.timeData || dashboardData.timeData.length === 0) {
+                return;
+            }
+            
+            const samplerLabels = Object.keys(dashboardData.samplerStats);
+            const datasets = [];
+            const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#34495e', '#95a5a6'];
+            
+            // Create time labels
+            const timeLabels = dashboardData.timeData.map(timePoint => {
+                const date = new Date(timePoint.timestamp);
+                return date.toLocaleTimeString();
+            });
+            
+            // Calculate average response time per sampler for each time period
+            samplerLabels.forEach((samplerLabel, index) => {
+                const color = colors[index % colors.length];
+                const dataPoints = [];
+                
+                // For each time period, calculate average response time for this sampler
+                dashboardData.timeData.forEach(timePoint => {
+                    // Find all samples for this sampler in this time period
+                    const samplerResponseTimes = [];
+                    
+                    // Filter samples by timestamp range and sampler label
+                    dashboardData.samples.forEach(sample => {
+                        const sampleTime = parseInt(sample.timeStamp || 0);
+                        const sampleLabel = sample.label || '';
+                        
+                        // Check if sample is within current time period and matches sampler
+                        if (sampleLabel === samplerLabel) {
+                            const timePeriodStart = timePoint.timestamp;
+                            const timePeriodEnd = timePeriodStart + (currentPeriodSeconds * 1000);
+                            
+                            if (sampleTime >= timePeriodStart && sampleTime < timePeriodEnd) {
+                                const responseTime = parseInt(sample.elapsed || 0);
+                                samplerResponseTimes.push(responseTime);
+                            }
+                        }
+                    });
+                    
+                    // Calculate average for this time period
+                    if (samplerResponseTimes.length > 0) {
+                        const avgResponseTime = samplerResponseTimes.reduce((sum, time) => sum + time, 0) / samplerResponseTimes.length;
+                        dataPoints.push(Math.round(avgResponseTime));
+                    } else {
+                        dataPoints.push(null); // No data for this time period
+                    }
+                });
+                
+                // Only add dataset if it has some data
+                if (dataPoints.some(point => point !== null)) {
+                    datasets.push({
+                        label: samplerLabel.length > 25 ? samplerLabel.substring(0, 25) + '...' : samplerLabel,
+                        data: dataPoints,
+                        borderColor: color,
+                        backgroundColor: color + '20', // 20% opacity
+                        fill: false,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        borderWidth: 2,
+                        spanGaps: true // Connect lines across null values
+                    });
+                }
+            });
+            
+            // Update the chart
+            charts.individualResponse.data.labels = timeLabels;
+            charts.individualResponse.data.datasets = datasets;
+            charts.individualResponse.update();
+        }
+
+        function updateThroughputChart() {
+            const timeLabels = [];
+            const throughputData = [];
+            
+            dashboardData.timeData.forEach(timePoint => {
+                const date = new Date(timePoint.timestamp);
+                timeLabels.push(date.toLocaleTimeString());
+                // Convert to requests per second based on the current period
+                const throughputPerSecond = (timePoint.requests / currentPeriodSeconds).toFixed(2);
+                throughputData.push(parseFloat(throughputPerSecond));
+            });
+            
+            charts.throughput.data.labels = timeLabels;
+            charts.throughput.data.datasets[0].data = throughputData;
+            charts.throughput.update();
+        }
+
+        function updateThreadsChart() {
+            const timeLabels = [];
+            const threadsData = [];
+            
+            dashboardData.timeData.forEach(timePoint => {
+                const date = new Date(timePoint.timestamp);
+                timeLabels.push(date.toLocaleTimeString());
+                threadsData.push(timePoint.threads);
+            });
+            
+            charts.threads.data.labels = timeLabels;
+            charts.threads.data.datasets[0].data = threadsData;
+            charts.threads.update();
+        }
+
+        function updateResponseCodesChart() {
+            const codes = Object.keys(dashboardData.responseCodes);
+            const counts = Object.values(dashboardData.responseCodes);
+            
+            charts.responseCodes.data.labels = codes;
+            charts.responseCodes.data.datasets[0].data = counts;
+            charts.responseCodes.update();
+        }
+
+        function updatePercentilesChart() {
+            if (dashboardData.timeData.length === 0) return;
+            
+            const timeLabels = [];
+            const pct50Data = [];
+            const pct90Data = [];
+            const pct95Data = [];
+            const pct99Data = [];
+            
+            dashboardData.timeData.forEach(timePoint => {
+                const date = new Date(timePoint.timestamp);
+                timeLabels.push(date.toLocaleTimeString());
+                
+                const sortedTimes = timePoint.responseTimes.sort((a, b) => a - b);
+                pct50Data.push(calculatePercentile(sortedTimes, 50));
+                pct90Data.push(calculatePercentile(sortedTimes, 90));
+                pct95Data.push(calculatePercentile(sortedTimes, 95));
+                pct99Data.push(calculatePercentile(sortedTimes, 99));
+            });
+            
+            charts.percentiles.data.labels = timeLabels;
+            charts.percentiles.data.datasets = [
+                {
+                    label: '50th Percentile',
+                    data: pct50Data,
+                    borderColor: '#3498db',
+                    backgroundColor: 'transparent',
+                    tension: 0.4,
+                    fill: false,
+                    borderWidth: 2
+                },
+                {
+                    label: '90th Percentile',
+                    data: pct90Data,
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'transparent',
+                    tension: 0.4,
+                    fill: false,
+                    borderWidth: 2
+                },
+                {
+                    label: '95th Percentile',
+                    data: pct95Data,
+                    borderColor: '#f39c12',
+                    backgroundColor: 'transparent',
+                    tension: 0.4,
+                    fill: false,
+                    borderWidth: 2
+                },
+                {
+                    label: '99th Percentile',
+                    data: pct99Data,
+                    borderColor: '#9b59b6',
+                    backgroundColor: 'transparent',
+                    tension: 0.4,
+                    fill: false,
+                    borderWidth: 2
+                }
+            ];
+            charts.percentiles.update();
+        }
+
+        function updateHttpCodesTimeChart() {
+            if (!dashboardData.timeData || dashboardData.timeData.length === 0) {
+                return;
+            }
+            
+            // Get all unique HTTP codes from the data
+            const allHttpCodes = [...new Set(dashboardData.samples.map(sample => sample.responseCode || '200'))];
+            const colors = ['#2ecc71', '#e74c3c', '#f39c12', '#3498db', '#9b59b6', '#1abc9c', '#34495e', '#95a5a6'];
+            
+            // Create time labels
+            const timeLabels = dashboardData.timeData.map(timePoint => {
+                const date = new Date(timePoint.timestamp);
+                return date.toLocaleTimeString();
+            });
+            
+            const datasets = [];
+            
+            // Create a dataset for each HTTP code
+            allHttpCodes.forEach((httpCode, index) => {
+                const color = colors[index % colors.length];
+                const dataPoints = [];
+                
+                // For each time period, count occurrences of this HTTP code
+                dashboardData.timeData.forEach(timePoint => {
+                    let codeCount = 0;
+                    
+                    // Count samples with this HTTP code in this time period
+                    dashboardData.samples.forEach(sample => {
+                        const sampleTime = parseInt(sample.timeStamp || 0);
+                        const sampleCode = sample.responseCode || '200';
+                        
+                        if (sampleCode === httpCode) {
+                            const timePeriodStart = timePoint.timestamp;
+                            const timePeriodEnd = timePeriodStart + (currentPeriodSeconds * 1000);
+                            
+                            if (sampleTime >= timePeriodStart && sampleTime < timePeriodEnd) {
+                                codeCount++;
+                            }
+                        }
+                    });
+                    
+                    dataPoints.push(codeCount);
+                });
+                
+                // Only add dataset if it has some data
+                if (dataPoints.some(count => count > 0)) {
+                    datasets.push({
+                        label: `HTTP ${httpCode}`,
+                        data: dataPoints,
+                        borderColor: color,
+                        backgroundColor: color + '20', // 20% opacity
+                        fill: false,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        borderWidth: 2
+                    });
+                }
+            });
+            
+            // Sort datasets to show success codes first, then errors
+            datasets.sort((a, b) => {
+                const codeA = parseInt(a.label.replace('HTTP ', ''));
+                const codeB = parseInt(b.label.replace('HTTP ', ''));
+                
+                // Success codes (2xx, 3xx) first, then errors (4xx, 5xx)
+                if (codeA < 400 && codeB >= 400) return -1;
+                if (codeA >= 400 && codeB < 400) return 1;
+                return codeA - codeB;
+            });
+            
+            // Update the chart
+            charts.httpCodesTime.data.labels = timeLabels;
+            charts.httpCodesTime.data.datasets = datasets;
+            charts.httpCodesTime.update();
+        }
+
+        function updateSystemMetricsCharts() {
+            updateCpuUsageChart();
+            updateMemoryUsageChart();
+        }
+
+        function updatePerformanceAnalysisCharts() {
+            updatePerformanceAnalysisChart();
+            updateErrorRateChart();
+            updateBytesReceivedChart();
+            updateConnectionTimeChart();
+        }
+
+        /**
+         * Load quality gate configuration from server
+         */
+        async function loadQualityGates() {
+            try {
+                const response = await fetch('/quality-gate');
+                if (response.ok) {
+                    const data = await response.json();
+                    dashboardData.qualityGates = data.metrics || [];
+                    console.log('Loaded quality gates:', dashboardData.qualityGates);
+                    addQualityGateAreas();
+                    updateQualityGateTable(); // Update the table when quality gates are loaded
+                } else {
+                    console.warn('Failed to load quality gates:', response.status);
+                    dashboardData.qualityGates = [];
+                }
+            } catch (error) {
+                console.error('Error loading quality gates:', error);
+                dashboardData.qualityGates = [];
+            }
+        }
+
+        /**
+         * Load target scores from backend
+         */
+        async function loadTargetScores() {
+            try {
+                const response = await fetch('/target-scores');
+                if (response.ok) {
+                    const data = await response.json();
+                    dashboardData.targetScores = data || { passScore: 80.0, warningScore: 60.0 };
+                    console.log('Loaded target scores:', dashboardData.targetScores);
+                } else {
+                    console.warn('Failed to load target scores:', response.status);
+                    dashboardData.targetScores = { passScore: 80.0, warningScore: 60.0 };
+                }
+            } catch (error) {
+                console.error('Error loading target scores:', error);
+                dashboardData.targetScores = { passScore: 80.0, warningScore: 60.0 };
+            }
+        }
+
+        /**
+         * Calculate overall score based on quality gate evaluations
+         */
+        function calculateOverallScore() {
+            if (!dashboardData.qualityGates || dashboardData.qualityGates.length === 0 || !dashboardData.targetScores) {
+                return { overallScore: 0, overallStatus: 'N/A' };
+            }
+
+            const evaluations = calculateQualityGateEvaluation();
+            if (evaluations.length === 0) {
+                return { overallScore: 0, overallStatus: 'N/A' };
+            }
+
+            let totalWeightedScore = 0;
+            let totalWeightage = 0;
+
+            evaluations.forEach(evaluation => {
+                // Get base score based on status
+                let baseScore = 0;
+                if (evaluation.status === 'PASS') {
+                    baseScore = dashboardData.targetScores.passScore;
+                } else if (evaluation.status === 'WARNING') {
+                    baseScore = dashboardData.targetScores.warningScore;
+                } else if (evaluation.status === 'FAIL') {
+                    // For FAIL status, use 0 as base score (below warning threshold)
+                    baseScore = 0;
+                }
+
+                // Get weightage from quality gate configuration
+                const qualityGate = dashboardData.qualityGates.find(qg => 
+                    qg.metric === evaluation.metric && qg.aggregate === evaluation.aggregate
+                );
+                const weightage = qualityGate ? (qualityGate.weightage || 0.5) : 0.5;
+
+                // Calculate weighted score
+                const weightedScore = baseScore * weightage;
+                totalWeightedScore += weightedScore;
+                totalWeightage += weightage;
+
+                console.log(`Metric: ${evaluation.metric}, Status: ${evaluation.status}, Base Score: ${baseScore}, Weightage: ${weightage}, Weighted Score: ${weightedScore}`);
+            });
+
+            // Calculate overall score
+            const overallScore = totalWeightage > 0 ? totalWeightedScore / totalWeightage : 0;
+
+            // Determine overall status
+            let overallStatus = 'FAIL';
+            if (overallScore >= dashboardData.targetScores.passScore) {
+                overallStatus = 'PASS';
+            } else if (overallScore >= dashboardData.targetScores.warningScore) {
+                overallStatus = 'WARNING';
+            }
+
+            console.log(`Overall Score Calculation - Total Weighted Score: ${totalWeightedScore}, Total Weightage: ${totalWeightage}, Overall Score: ${overallScore}, Status: ${overallStatus}`);
+
+            return { overallScore: overallScore, overallStatus: overallStatus };
+        }
+
+        /**
+         * Update overall score table
+         */
+        function updateOverallScoreTable() {
+            const tbody = document.getElementById('overallScoreTableBody');
+            tbody.innerHTML = '';
+
+            if (!dashboardData.targetScores) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td colspan="4" style="text-align: center; padding: 40px; color: #7f8c8d;">
+                        🎯 Configure quality gates in JMeter plugin to view overall score
+                    </td>
+                `;
+                tbody.appendChild(row);
+                return;
+            }
+
+            const overallResult = calculateOverallScore();
+            
+            // Determine status color
+            let statusColor = '#e74c3c'; // Default red for FAIL
+            if (overallResult.overallStatus === 'PASS') {
+                statusColor = '#2ecc71'; // Green
+            } else if (overallResult.overallStatus === 'WARNING') {
+                statusColor = '#f39c12'; // Orange
+            }
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td style="text-align: center; font-weight: bold;">${dashboardData.targetScores.passScore.toFixed(1)}</td>
+                <td style="text-align: center; font-weight: bold;">${dashboardData.targetScores.warningScore.toFixed(1)}</td>
+                <td style="text-align: center; font-weight: bold; font-size: 1.2em;">${overallResult.overallScore.toFixed(1)}</td>
+                <td style="background-color: ${statusColor}; color: white; font-weight: bold; text-align: center; font-size: 1.1em;">
+                    ${overallResult.overallStatus}
+                </td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        /**
+         * Calculate quality gate evaluation results from current data
+         */
+        function calculateQualityGateEvaluation() {
+            if (!dashboardData.qualityGates || dashboardData.qualityGates.length === 0) {
+                return [];
+            }
+            
+            const evaluations = [];
+            
+            dashboardData.qualityGates.forEach(qg => {
+                // Calculate actual value based on metric and aggregate
+                const actualValue = calculateActualValue(qg.metric, qg.aggregate);
+                
+                // Debug logging
+                console.log(`Quality Gate Debug - Metric: ${qg.metric}, Aggregate: ${qg.aggregate}, Actual Value: ${actualValue}, Samples: ${dashboardData.samples ? dashboardData.samples.length : 0}`);
+                
+                // Evaluate status
+                const status = evaluateQualityGateStatus(qg, actualValue);
+                
+                // Generate range descriptions
+                const passRange = generateRangeDescription(qg.operator, qg.passValue, qg.warningValue, 'PASS');
+                const warningRange = generateRangeDescription(qg.operator, qg.passValue, qg.warningValue, 'WARNING');
+                const failRange = generateRangeDescription(qg.operator, qg.passValue, qg.warningValue, 'FAIL');
+                
+                evaluations.push({
+                    metric: qg.metric,
+                    aggregate: qg.aggregate,
+                    operator: qg.operator,
+                    passValue: qg.passValue,
+                    warningValue: qg.warningValue,
+                    actualValue: actualValue,
+                    status: status,
+                    passRange: passRange,
+                    warningRange: warningRange,
+                    failRange: failRange
+                });
+            });
+            
+            return evaluations;
+        }
+
+        /**
+         * Calculate actual value for a metric and aggregate from raw JTL data
+         */
+        function calculateActualValue(metric, aggregate) {
+            if (!dashboardData.samples || dashboardData.samples.length === 0) {
+                return null;
+            }
+            
+            let values = [];
+            
+            // Collect values based on metric type from raw samples
+            switch (metric) {
+                case "Response Time":
+                    values = dashboardData.samples.map(sample => parseInt(sample.elapsed || sample.Elapsed || 0)).filter(v => v > 0);
+                    break;
+                case "Throughput":
+                    // Calculate overall throughput from test start to now
+                    if (dashboardData.samples.length > 0) {
+                        const timestamps = dashboardData.samples.map(sample => parseInt(sample.timeStamp || sample.TimeStamp || 0)).filter(ts => ts > 0);
+                        if (timestamps.length > 1) {
+                            const testStartTime = Math.min(...timestamps);
+                            const testEndTime = Math.max(...timestamps);
+                            const testDurationSeconds = (testEndTime - testStartTime) / 1000;
+                            if (testDurationSeconds > 0) {
+                                const totalSamples = dashboardData.samples.length;
+                                values = [totalSamples / testDurationSeconds];
+                            }
+                        }
+                    }
+                    break;
+                case "Error Rate":
+                    // Calculate overall error rate
+                    const totalSamples = dashboardData.samples.length;
+                    const errorSamples = dashboardData.samples.filter(sample => {
+                        const success = sample.success || sample.Success;
+                        return success === 'false' || success === false;
+                    }).length;
+                    if (totalSamples > 0) {
+                        values = [(errorSamples / totalSamples) * 100];
+                    }
+                    break;
+                case "CPU Usage":
+                    if (dashboardData.systemMetrics && dashboardData.systemMetrics.length > 0) {
+                        values = dashboardData.systemMetrics.map(point => parseFloat(point.cpu_usage)).filter(v => v !== null && !isNaN(v));
+                    }
+                    break;
+                case "Memory Usage":
+                    if (dashboardData.systemMetrics && dashboardData.systemMetrics.length > 0) {
+                        values = dashboardData.systemMetrics.map(point => parseFloat(point.memory_usage)).filter(v => v !== null && !isNaN(v));
+                    }
+                    break;
+            }
+            
+            if (values.length === 0) {
+                return null;
+            }
+            
+            // Calculate aggregate
+            switch (aggregate) {
+                case "Avg":
+                    return values.reduce((sum, val) => sum + val, 0) / values.length;
+                case "Max":
+                    return Math.max(...values);
+                case "Min":
+                    return Math.min(...values);
+                case "99Pct":
+                    return calculatePercentile(values, 99);
+                case "95Pct":
+                    return calculatePercentile(values, 95);
+                case "90Pct":
+                    return calculatePercentile(values, 90);
+                default:
+                    return values.reduce((sum, val) => sum + val, 0) / values.length;
+            }
+        }
+
+        /**
+         * Calculate percentile value
+         */
+        function calculatePercentile(values, percentile) {
+            if (values.length === 0) return null;
+            
+            const sortedValues = [...values].sort((a, b) => a - b);
+            const index = Math.ceil((percentile / 100.0) * sortedValues.length) - 1;
+            const clampedIndex = Math.max(0, Math.min(index, sortedValues.length - 1));
+            
+            return sortedValues[clampedIndex];
+        }
+
+        /**
+         * Evaluate quality gate status
+         */
+        function evaluateQualityGateStatus(qg, actualValue) {
+            if (actualValue === null) {
+                return 'FAIL';
+            }
+            
+            const hasWarning = qg.warningValue !== null;
+            
+            // For "=" operator, just use dotted line (no area chart)
+            if (qg.operator === "=") {
+                return actualValue === qg.passValue ? 'PASS' : 'FAIL';
+            }
+            
+            // If no warning value, only PASS/FAIL
+            if (!hasWarning) {
+                switch (qg.operator) {
+                    case ">":
+                        return actualValue > qg.passValue ? 'PASS' : 'FAIL';
+                    case ">=":
+                        return actualValue >= qg.passValue ? 'PASS' : 'FAIL';
+                    case "<":
+                        return actualValue < qg.passValue ? 'PASS' : 'FAIL';
+                    case "<=":
+                        return actualValue <= qg.passValue ? 'PASS' : 'FAIL';
+                    default:
+                        return 'FAIL';
+                }
+            }
+            
+            // Three-tier system: PASS/WARNING/FAIL
+            switch (qg.operator) {
+                case ">":
+                    if (actualValue > qg.passValue) return 'PASS';
+                    if (actualValue > qg.warningValue) return 'WARNING';
+                    return 'FAIL';
+                case ">=":
+                    if (actualValue >= qg.passValue) return 'PASS';
+                    if (actualValue >= qg.warningValue) return 'WARNING';
+                    return 'FAIL';
+                case "<":
+                    if (actualValue < qg.passValue) return 'PASS';
+                    if (actualValue < qg.warningValue) return 'WARNING';
+                    return 'FAIL';
+                case "<=":
+                    if (actualValue <= qg.passValue) return 'PASS';
+                    if (actualValue <= qg.warningValue) return 'WARNING';
+                    return 'FAIL';
+                default:
+                    return 'FAIL';
+            }
+        }
+
+        /**
+         * Generate range description for quality gate
+         */
+        function generateRangeDescription(operator, passValue, warningValue, type) {
+            if (passValue === null) return 'N/A';
+            
+            switch (type) {
+                case "PASS":
+                    if (operator === "=") {
+                        return "= " + passValue;
+                    } else {
+                        return operator + " " + passValue;
+                    }
+                case "WARNING":
+                    if (warningValue !== null) {
+                        switch (operator) {
+                            case ">":
+                            case ">=":
+                                return operator + " " + warningValue + " to " + passValue;
+                            case "<":
+                            case "<=":
+                                return operator + " " + passValue + " to " + warningValue;
+                        }
+                    }
+                    return 'N/A';
+                case "FAIL":
+                    if (warningValue !== null) {
+                        switch (operator) {
+                            case ">":
+                            case ">=":
+                                return "< " + warningValue;
+                            case "<":
+                            case "<=":
+                                return "> " + warningValue;
+                        }
+                    } else {
+                        switch (operator) {
+                            case ">":
+                            case ">=":
+                                return "< " + passValue;
+                            case "<":
+                            case "<=":
+                                return "> " + passValue;
+                        }
+                    }
+                    return 'N/A';
+            }
+            return 'N/A';
+        }
+
+        /**
+         * Add quality gate area charts to existing charts
+         */
+        function addQualityGateAreas() {
+            if (!dashboardData.qualityGates || dashboardData.qualityGates.length === 0) {
+                return;
+            }
+
+            // Add quality gate areas to response time chart
+            addQualityGateToChart('responseTime', 'Response Time');
+            
+            // Add quality gate areas to throughput chart
+            addQualityGateToChart('throughput', 'Throughput');
+            
+            // Add quality gate areas to error rate chart
+            addQualityGateToChart('errorRate', 'Error Rate');
+            
+            // Add quality gate areas to CPU usage chart
+            addQualityGateToChart('cpuUsage', 'CPU Usage');
+            
+            // Add quality gate areas to memory usage chart
+            addQualityGateToChart('memoryUsage', 'Memory Usage');
+        }
+
+        /**
+         * Add quality gate areas to a specific chart
+         */
+        function addQualityGateToChart(chartName, metricName) {
+            console.log(`Adding quality gates to chart: ${chartName}, metric: ${metricName}`);
+            console.log(`Chart exists: ${!!charts[chartName]}, Quality gates exist: ${!!dashboardData.qualityGates}`);
+            
+            if (!charts[chartName] || !dashboardData.qualityGates) {
+                console.log(`Skipping ${chartName} - chart or quality gates not available`);
+                return;
+            }
+
+            const chart = charts[chartName];
+            const qualityGates = dashboardData.qualityGates.filter(qg => 
+                qg.metric === metricName
+            );
+
+            console.log(`Found ${qualityGates.length} quality gates for ${metricName}:`, qualityGates);
+
+            if (qualityGates.length === 0) {
+                console.log(`No quality gates found for ${metricName}`);
+                return;
+            }
+
+            // Remove existing quality gate datasets
+            chart.data.datasets = chart.data.datasets.filter(dataset => 
+                !dataset.isQualityGate
+            );
+
+            qualityGates.forEach(qg => {
+                // Add dotted lines for all thresholds
+                if (qg.operator === '=') {
+                    addDottedLine(chart, qg.passValue, 'Pass Threshold (= ' + qg.passValue + ')', '#2ecc71');
+                } else {
+                    // Add dotted lines for pass and warning thresholds
+                    addDottedLine(chart, qg.passValue, 'Pass Threshold (' + qg.operator + ' ' + qg.passValue + ')', '#2ecc71');
+                    if (qg.warningValue !== null && qg.warningValue !== undefined) {
+                        addDottedLine(chart, qg.warningValue, 'Warning Threshold (' + qg.operator + ' ' + qg.warningValue + ')', '#f39c12');
+                    }
+                }
+            });
+
+            chart.update();
+        }
+
+        /**
+         * Parse comparison operator from threshold string
+         */
+        function parseComparisonOperator(threshold) {
+            if (!threshold || threshold.trim() === '') {
+                return null;
+            }
+
+            const trimmed = threshold.trim();
+            
+            if (trimmed.startsWith('>=')) {
+                return { operator: '>=', value: parseFloat(trimmed.substring(2).trim()) };
+            } else if (trimmed.startsWith('<=')) {
+                return { operator: '<=', value: parseFloat(trimmed.substring(2).trim()) };
+            } else if (trimmed.startsWith('>')) {
+                return { operator: '>', value: parseFloat(trimmed.substring(1).trim()) };
+            } else if (trimmed.startsWith('<')) {
+                return { operator: '<', value: parseFloat(trimmed.substring(1).trim()) };
+            } else if (trimmed.startsWith('=')) {
+                return { operator: '=', value: parseFloat(trimmed.substring(1).trim()) };
+            }
+            
+            return null;
+        }
+
+        /**
+         * Add dotted line for equality operator
+         */
+        function addDottedLine(chart, value, label, color) {
+            const lineData = new Array(chart.data.labels.length).fill(value);
+            
+            chart.data.datasets.push({
+                label: label,
+                data: lineData,
+                borderColor: color,
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                fill: false,
+                pointRadius: 0,
+                isQualityGate: true
+            });
+        }
+
+        /**
+         * Add area regions for pass/warning zones
+         */
+        function addAreaRegions(chart, passOp, warningOp) {
+            const labels = chart.data.labels;
+            const maxValue = Math.max(...chart.data.datasets
+                .filter(d => !d.isQualityGate)
+                .flatMap(d => d.data)
+                .filter(v => v !== null && v !== undefined)
+            );
+
+            if (passOp.operator === '>' && warningOp.operator === '>') {
+                // For ">" operator: pass > warning
+                // PASS region: above pass value
+                addAreaRegion(chart, labels, passOp.value, maxValue, 'Pass Region', '#2ecc71', 0.2);
+                // WARNING region: between warning and pass
+                addAreaRegion(chart, labels, warningOp.value, passOp.value, 'Warning Region', '#f39c12', 0.2);
+                // FAIL region: below warning (transparent, just for reference)
+                addAreaRegion(chart, labels, 0, warningOp.value, 'Fail Region', '#e74c3c', 0.1);
+            } else if (passOp.operator === '<' && warningOp.operator === '<') {
+                // For "<" operator: warning > pass
+                // PASS region: below pass value
+                addAreaRegion(chart, labels, 0, passOp.value, 'Pass Region', '#2ecc71', 0.2);
+                // WARNING region: between pass and warning
+                addAreaRegion(chart, labels, passOp.value, warningOp.value, 'Warning Region', '#f39c12', 0.2);
+                // FAIL region: above warning
+                addAreaRegion(chart, labels, warningOp.value, maxValue, 'Fail Region', '#e74c3c', 0.1);
+            }
+        }
+
+        /**
+         * Add a single area region to chart
+         */
+        function addAreaRegion(chart, labels, minValue, maxValue, label, color, opacity) {
+            const upperData = new Array(labels.length).fill(maxValue);
+            const lowerData = new Array(labels.length).fill(minValue);
+            
+            chart.data.datasets.push({
+                label: label,
+                data: upperData,
+                borderColor: 'transparent',
+                backgroundColor: color,
+                fill: '+1',
+                pointRadius: 0,
+                isQualityGate: true
+            });
+            
+            chart.data.datasets.push({
+                label: '',
+                data: lowerData,
+                borderColor: 'transparent',
+                backgroundColor: color,
+                fill: false,
+                pointRadius: 0,
+                isQualityGate: true
+            });
+        }
+
+        /**
+         * Add area regions using pre-calculated ranges from server
+         */
+        function addAreaRegionsFromRanges(chart, qg) {
+            const labels = chart.data.labels;
+            
+            if (qg.hasWarning) {
+                // Three-tier system: PASS/WARNING/FAIL
+                // Add PASS region
+                if (qg.passMin !== null && qg.passMax !== null) {
+                    addAreaRegion(chart, labels, qg.passMin, qg.passMax, 
+                        'Pass Region (' + qg.operator + ' ' + qg.passValue + ')', '#2ecc71', 0.2);
+                }
+                
+                // Add WARNING region
+                if (qg.warningMin !== null && qg.warningMax !== null) {
+                    addAreaRegion(chart, labels, qg.warningMin, qg.warningMax, 
+                        'Warning Region (' + qg.operator + ' ' + qg.warningValue + ')', '#f39c12', 0.2);
+                }
+                
+                // Add FAIL region (transparent, just for reference)
+                if (qg.failMin !== null && qg.failMax !== null) {
+                    addAreaRegion(chart, labels, qg.failMin, qg.failMax, 
+                        'Fail Region', '#e74c3c', 0.1);
+                }
+            } else {
+                // Binary system: PASS/FAIL only
+                // Add PASS region
+                if (qg.passMin !== null && qg.passMax !== null) {
+                    addAreaRegion(chart, labels, qg.passMin, qg.passMax, 
+                        'Pass Region (' + qg.operator + ' ' + qg.passValue + ')', '#2ecc71', 0.2);
+                }
+                
+                // Add FAIL region (transparent, just for reference)
+                if (qg.failMin !== null && qg.failMax !== null) {
+                    addAreaRegion(chart, labels, qg.failMin, qg.failMax, 
+                        'Fail Region', '#e74c3c', 0.1);
+                }
+            }
+        }
+
+        function updateCpuUsageChart() {
+            if (!dashboardData.systemMetrics || dashboardData.systemMetrics.length === 0) {
+                return;
+            }
+
+            const timeLabels = [];
+            const cpuData = [];
+            const timeData = {};
+
+            // Group system metrics by time period (same logic as other charts)
+            dashboardData.systemMetrics.forEach(metric => {
+                const timestamp = parseInt(metric.timestamp);
+                const timeKey = Math.floor(timestamp / (currentPeriodSeconds * 1000)) * (currentPeriodSeconds * 1000);
+                
+                if (!timeData[timeKey]) {
+                    timeData[timeKey] = {
+                        cpuValues: [],
+                        memoryValues: []
+                    };
+                }
+                
+                timeData[timeKey].cpuValues.push(parseFloat(metric.cpu_usage));
+                timeData[timeKey].memoryValues.push(parseFloat(metric.memory_usage));
+            });
+
+            // Create aggregated data points
+            Object.keys(timeData).sort((a, b) => parseInt(a) - parseInt(b)).forEach(timeKey => {
+                const data = timeData[timeKey];
+                const date = new Date(parseInt(timeKey));
+                timeLabels.push(date.toLocaleTimeString());
+                
+                // Calculate average CPU usage for this time period
+                const avgCpu = data.cpuValues.reduce((sum, val) => sum + val, 0) / data.cpuValues.length;
+                cpuData.push(parseFloat(avgCpu.toFixed(2)));
+            });
+
+            charts.cpuUsage.data.labels = timeLabels;
+            charts.cpuUsage.data.datasets[0].data = cpuData;
+            charts.cpuUsage.update();
+            
+            // Add quality gate areas to CPU chart
+            addQualityGateToChart('cpuUsage', 'CPU Usage');
+        }
+
+        function updateMemoryUsageChart() {
+            if (!dashboardData.systemMetrics || dashboardData.systemMetrics.length === 0) {
+                return;
+            }
+
+            const timeLabels = [];
+            const memoryData = [];
+            const timeData = {};
+
+            // Group system metrics by time period (same logic as other charts)
+            dashboardData.systemMetrics.forEach(metric => {
+                const timestamp = parseInt(metric.timestamp);
+                const timeKey = Math.floor(timestamp / (currentPeriodSeconds * 1000)) * (currentPeriodSeconds * 1000);
+                
+                if (!timeData[timeKey]) {
+                    timeData[timeKey] = {
+                        cpuValues: [],
+                        memoryValues: []
+                    };
+                }
+                
+                timeData[timeKey].cpuValues.push(parseFloat(metric.cpu_usage));
+                timeData[timeKey].memoryValues.push(parseFloat(metric.memory_usage));
+            });
+
+            // Create aggregated data points
+            Object.keys(timeData).sort((a, b) => parseInt(a) - parseInt(b)).forEach(timeKey => {
+                const data = timeData[timeKey];
+                const date = new Date(parseInt(timeKey));
+                timeLabels.push(date.toLocaleTimeString());
+                
+                // Calculate average memory usage for this time period
+                const avgMemory = data.memoryValues.reduce((sum, val) => sum + val, 0) / data.memoryValues.length;
+                memoryData.push(parseFloat(avgMemory.toFixed(2)));
+            });
+
+            charts.memoryUsage.data.labels = timeLabels;
+            charts.memoryUsage.data.datasets[0].data = memoryData;
+            charts.memoryUsage.update();
+            
+            // Add quality gate areas to memory chart
+            addQualityGateToChart('memoryUsage', 'Memory Usage');
+        }
+
+        function updatePerformanceAnalysisChart() {
+            if (!dashboardData.timeData || Object.keys(dashboardData.timeData).length === 0) {
+                return;
+            }
+
+            const timeLabels = [];
+            const responseTimeData = [];
+            const throughputData = [];
+            const errorRateData = [];
+
+            Object.keys(dashboardData.timeData).sort((a, b) => parseInt(a) - parseInt(b)).forEach(timeKey => {
+                const data = dashboardData.timeData[timeKey];
+                const date = new Date(parseInt(timeKey));
+                timeLabels.push(date.toLocaleTimeString());
+
+                // Calculate average response time
+                const avgResponseTime = data.responseTimes.length > 0 ? 
+                    data.responseTimes.reduce((sum, time) => sum + time, 0) / data.responseTimes.length : 0;
+                responseTimeData.push(parseFloat(avgResponseTime.toFixed(2)));
+
+                // Calculate throughput (requests per second)
+                const throughput = data.totalRequests / currentPeriodSeconds;
+                throughputData.push(parseFloat(throughput.toFixed(2)));
+
+                // Calculate error rate percentage
+                const errorRate = data.totalRequests > 0 ? (data.errorCount / data.totalRequests) * 100 : 0;
+                errorRateData.push(parseFloat(errorRate.toFixed(2)));
+            });
+
+            charts.performanceAnalysis.data.labels = timeLabels;
+            charts.performanceAnalysis.data.datasets[0].data = responseTimeData;
+            charts.performanceAnalysis.data.datasets[1].data = throughputData;
+            charts.performanceAnalysis.data.datasets[2].data = errorRateData;
+            charts.performanceAnalysis.update();
+        }
+
+        function updateErrorRateChart() {
+            if (!dashboardData.timeData || Object.keys(dashboardData.timeData).length === 0) {
+                return;
+            }
+
+            const timeLabels = [];
+            const errorRateData = [];
+
+            Object.keys(dashboardData.timeData).sort((a, b) => parseInt(a) - parseInt(b)).forEach(timeKey => {
+                const data = dashboardData.timeData[timeKey];
+                const date = new Date(parseInt(timeKey));
+                timeLabels.push(date.toLocaleTimeString());
+
+                // Calculate error rate percentage
+                const errorRate = data.totalRequests > 0 ? (data.errorCount / data.totalRequests) * 100 : 0;
+                errorRateData.push(parseFloat(errorRate.toFixed(2)));
+            });
+
+            charts.errorRate.data.labels = timeLabels;
+            charts.errorRate.data.datasets[0].data = errorRateData;
+            charts.errorRate.update();
+        }
+
+        function updateBytesReceivedChart() {
+            if (!dashboardData.timeData || Object.keys(dashboardData.timeData).length === 0) {
+                return;
+            }
+
+            const timeLabels = [];
+            const bytesData = [];
+
+            Object.keys(dashboardData.timeData).sort((a, b) => parseInt(a) - parseInt(b)).forEach(timeKey => {
+                const data = dashboardData.timeData[timeKey];
+                const date = new Date(parseInt(timeKey));
+                timeLabels.push(date.toLocaleTimeString());
+
+                // Calculate total bytes received for this period
+                const totalBytes = data.bytesReceived.reduce((sum, bytes) => sum + bytes, 0);
+                bytesData.push(totalBytes);
+            });
+
+            charts.bytesReceived.data.labels = timeLabels;
+            charts.bytesReceived.data.datasets[0].data = bytesData;
+            charts.bytesReceived.update();
+        }
+
+        function updateConnectionTimeChart() {
+            if (!dashboardData.timeData || Object.keys(dashboardData.timeData).length === 0) {
+                return;
+            }
+
+            const timeLabels = [];
+            const connectionTimeData = [];
+
+            Object.keys(dashboardData.timeData).sort((a, b) => parseInt(a) - parseInt(b)).forEach(timeKey => {
+                const data = dashboardData.timeData[timeKey];
+                const date = new Date(parseInt(timeKey));
+                timeLabels.push(date.toLocaleTimeString());
+
+                // Calculate average connection time
+                const avgConnectionTime = data.connectionTimes.length > 0 ? 
+                    data.connectionTimes.reduce((sum, time) => sum + time, 0) / data.connectionTimes.length : 0;
+                connectionTimeData.push(parseFloat(avgConnectionTime.toFixed(2)));
+            });
+
+            charts.connectionTime.data.labels = timeLabels;
+            charts.connectionTime.data.datasets[0].data = connectionTimeData;
+            charts.connectionTime.update();
+        }
+
+        function updateErrorTable() {
+            const errorTableBody = document.querySelector('.error-section tbody');
+            errorTableBody.innerHTML = '';
+            
+            if (dashboardData.errorDetails.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td colspan="5" style="text-align: center; padding: 40px; color: #2ecc71;">
+                        ✅ No errors found in the JTL file
+                    </td>
+                `;
+                errorTableBody.appendChild(row);
+                return;
+            }
+            
+            // Sort errors by count (descending)
+            dashboardData.errorDetails
+                .sort((a, b) => b.count - a.count)
+                .forEach(error => {
+                    const errorRate = dashboardData.summary.totalSamples > 0 ? 
+                        (error.count / dashboardData.summary.totalSamples * 100).toFixed(2) : '0.00';
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${error.sampler}</td>
+                        <td>${error.responseCode}</td>
+                        <td>${error.message}</td>
+                        <td>${error.count.toLocaleString()}</td>
+                        <td>${errorRate}%</td>
+                    `;
+                    errorTableBody.appendChild(row);
+                });
+        }
+
+        function updateQualityGateTable() {
+            const tbody = document.getElementById('qualityGateTableBody');
+            tbody.innerHTML = '';
+            
+            // Calculate quality gate evaluations from current data
+            const evaluations = calculateQualityGateEvaluation();
+            
+            if (evaluations.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #7f8c8d;">
+                        🎯 Configure quality gates in JMeter plugin to view evaluation results
+                    </td>
+                `;
+                tbody.appendChild(row);
+                return;
+            }
+            
+            evaluations.forEach(evaluation => {
+                const row = document.createElement('tr');
+                
+                // Determine status color
+                let statusColor = '#e74c3c'; // Default red for FAIL
+                if (evaluation.status === 'PASS') {
+                    statusColor = '#2ecc71'; // Green
+                } else if (evaluation.status === 'WARNING') {
+                    statusColor = '#f39c12'; // Orange
+                }
+                
+                // Format actual value properly
+                let actualValueDisplay = 'N/A';
+                if (evaluation.actualValue !== null && !isNaN(evaluation.actualValue)) {
+                    actualValueDisplay = evaluation.actualValue.toFixed(2);
+                }
+                
+                row.innerHTML = `
+                    <td>${evaluation.metric}</td>
+                    <td>${evaluation.aggregate}</td>
+                    <td>${evaluation.passRange}</td>
+                    <td>${evaluation.warningRange}</td>
+                    <td>${evaluation.failRange}</td>
+                    <td style="text-align: right; font-weight: bold;">${actualValueDisplay}</td>
+                    <td style="background-color: ${statusColor}; color: white; font-weight: bold; text-align: center;">
+                        ${evaluation.status}
+                    </td>
+                `;
+                tbody.appendChild(row);
+                });
+        }
+
+        function handlePeriodChange() {
+            const selectElement = document.getElementById('periodSelect');
+            currentPeriodSeconds = parseInt(selectElement.value);
+            
+            if (dashboardData.samples && dashboardData.samples.length > 0) {
+                // Re-process the data with new period
+                parseJTLContentFromSamples();
+                updateCharts();
+            }
+        }
+
+        function parseJTLContentFromSamples() {
+            // Re-calculate time-based data with new period
+            const timeData = {};
+            
+            dashboardData.samples.forEach(sample => {
+                const timestamp = parseInt(sample.timeStamp || 0);
+                const responseTime = parseInt(sample.elapsed || 0);
+                const threads = parseInt(sample.allThreads || 1);
+                const success = (sample.success === 'true' || sample.Success === 'true');
+                const bytes = parseInt(sample.bytes || sample.Bytes || 0);
+                const connectTime = parseInt(sample.Connect || sample.connect || 0);
+                
+                const timeKey = Math.floor(timestamp / (currentPeriodSeconds * 1000)) * (currentPeriodSeconds * 1000);
+                if (!timeData[timeKey]) {
+                    timeData[timeKey] = {
+                        responseTimes: [],
+                        requests: 0,
+                        threads: 0,
+                        timestamp: timeKey,
+                        totalRequests: 0,
+                        errorCount: 0,
+                        bytesReceived: [],
+                        connectionTimes: []
+                    };
+                }
+                timeData[timeKey].responseTimes.push(responseTime);
+                timeData[timeKey].requests++;
+                timeData[timeKey].threads = Math.max(timeData[timeKey].threads, threads);
+                timeData[timeKey].totalRequests++;
+                if (!success) {
+                    timeData[timeKey].errorCount++;
+                }
+                timeData[timeKey].bytesReceived.push(bytes);
+                timeData[timeKey].connectionTimes.push(connectTime);
+            });
+            
+            dashboardData.timeData = Object.values(timeData).sort((a, b) => a.timestamp - b.timestamp);
+        }
+
+        function maximizeChart(chartId, title) {
+            const modal = document.getElementById('chartModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalCanvas = document.getElementById('modalChart');
+            
+            modalTitle.textContent = title;
+            modal.style.display = 'block';
+            
+            // Map chart IDs to chart objects
+            const chartMapping = {
+                'responseTimeChart': charts.responseTime,
+                'samplerChart': charts.sampler,
+                'individualResponseChart': charts.individualResponse,
+                'throughputChart': charts.throughput,
+                'threadsChart': charts.threads,
+                'responseCodesChart': charts.responseCodes,
+                'percentilesChart': charts.percentiles,
+                'httpCodesTimeChart': charts.httpCodesTime,
+                'cpuUsageChart': charts.cpuUsage,
+                'memoryUsageChart': charts.memoryUsage,
+                'performanceAnalysisChart': charts.performanceAnalysis,
+                'errorRateChart': charts.errorRate,
+                'bytesReceivedChart': charts.bytesReceived,
+                'connectionTimeChart': charts.connectionTime
+            };
+            
+            const originalChart = chartMapping[chartId];
+            if (originalChart) {
+                // Destroy existing modal chart if any
+                if (modalChart) {
+                    modalChart.destroy();
+                }
+                
+                modalChart = new Chart(modalCanvas, {
+                    type: originalChart.config.type,
+                    data: JSON.parse(JSON.stringify(originalChart.data)),
+                    options: {
+                        ...JSON.parse(JSON.stringify(originalChart.config.options)),
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('chartModal');
+            modal.style.display = 'none';
+            
+            if (modalChart) {
+                modalChart.destroy();
+                modalChart = null;
+            }
+        }
+
+        // Close modal when clicking outside of it or pressing Escape
+        window.onclick = function(event) {
+            const modal = document.getElementById('chartModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Handle keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        function loadLiveData() {
+            if (isLiveMode) {
+                // Stop live mode
+                stopLiveMode();
+            } else {
+                // Start live mode
+                startLiveMode();
+            }
+        }
+
+        function startLiveMode() {
+            isLiveMode = true;
+            document.getElementById('liveBtn').textContent = '⏹️ Stop Live';
+            document.getElementById('liveBtn').style.backgroundColor = '#e74c3c';
+            
+            // Disable file input
+            document.getElementById('jtlFile').disabled = true;
+            
+            // Load quality gates and target scores immediately
+            loadQualityGates();
+            loadTargetScores();
+            
+            // Load initial data
+            loadLiveJTLFile();
+            
+            // Set up auto-refresh every 5 seconds
+            liveDataInterval = setInterval(() => {
+                loadLiveJTLFile();
+                loadSystemMetrics();
+            }, 5000);
+            
+            console.log('Live mode started - refreshing every 5 seconds');
+        }
+
+        function stopLiveMode() {
+            isLiveMode = false;
+            document.getElementById('liveBtn').textContent = '📡 Load Live Data';
+            document.getElementById('liveBtn').style.backgroundColor = '#e74c3c';
+            
+            // Enable file input
+            document.getElementById('jtlFile').disabled = false;
+            
+            // Clear interval
+            if (liveDataInterval) {
+                clearInterval(liveDataInterval);
+                liveDataInterval = null;
+            }
+            
+            console.log('Live mode stopped');
+        }
+
+        function loadLiveJTLFile() {
+            // Try to load live-dashboard.jtl from the same directory
+            fetch('live-dashboard.jtl')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(content => {
+                    if (content.trim()) {
+                        parseJTLContent(content);
+                        updateDashboard();
+                        updateFileLabel('live-dashboard.jtl (Live)');
+                        
+                        // Show dashboard content
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('dashboard-content').style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading live JTL file:', error);
+                    if (isLiveMode) {
+                        updateFileLabel('Live data not available - Check JMeter listener');
+                    }
+                });
+
+            // Load system metrics
+            loadSystemMetrics();
+        }
+
+        function loadSystemMetrics() {
+            // Try to load system metrics from /.jmeter-system-metrics.csv
+            fetch('/.jmeter-system-metrics.csv')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(content => {
+                    if (content.trim()) {
+                        parseSystemMetricsContent(content);
+                        updateSystemMetricsCharts(); // Update charts after loading new data
+                        addQualityGateAreas(); // Re-add quality gate areas to system metrics charts
+                    }
+                })
+                .catch(error => {
+                    console.log('System metrics not available yet:', error.message);
+                    // Don't show error for system metrics as it's optional
+                });
+        }
+
+        function parseSystemMetricsContent(content) {
+            const lines = content.split('\n');
+            if (lines.length < 2) {
+                return;
+            }
+            
+            const headers = lines[0].split(',').map(h => h.trim());
+            const newMetrics = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                const values = lines[i].split(',');
+                if (values.length !== headers.length) continue;
+                
+                const metric = {};
+                headers.forEach((header, index) => {
+                    metric[header] = values[index] ? values[index].trim() : '';
+                });
+                
+                newMetrics.push(metric);
+            }
+            
+            // Update the system metrics data
+            dashboardData.systemMetrics = newMetrics;
+        }
+
+        function updateFileLabel(filename) {
+            document.getElementById('fileInputLabel').textContent = filename;
+        }
+        function exportToPDF() {
+    // Store original table styles
+    const tableWrappers = document.querySelectorAll('.table-wrapper');
+    const originalStyles = [];
+
+    // Temporarily remove height limits and scrolling from tables
+    tableWrappers.forEach((wrapper, index) => {
+        originalStyles[index] = {
+            maxHeight: wrapper.style.maxHeight,
+            overflow: wrapper.style.overflow,
+            height: wrapper.style.height
+        };
+        wrapper.style.maxHeight = 'none';
+        wrapper.style.overflow = 'visible';
+        wrapper.style.height = 'auto';
+    });
+
+    setTimeout(() => {
+        const dashboardContainer = document.body;
+
+        html2canvas(dashboardContainer, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            scrollX: 0,
+            scrollY: 0,
+            windowWidth: dashboardContainer.scrollWidth,
+            windowHeight: dashboardContainer.scrollHeight,
+            backgroundColor: '#ffffff'
+        }).then(canvas => {
+            const imgData = canvas.toDataURL('image/png', 1.0);
+            const pdf = new window.jspdf.jsPDF({
+                orientation: 'portrait',
+                unit: 'px',
+                format: [canvas.width, canvas.height]
+            });
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+            pdf.save(`jmeter-dashboard-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`);
+
+            // Restore original table styles
+            tableWrappers.forEach((wrapper, index) => {
+                const original = originalStyles[index];
+                wrapper.style.maxHeight = original.maxHeight;
+                wrapper.style.overflow = original.overflow;
+                wrapper.style.height = original.height;
+            });
+        }).catch(error => {
+            console.error('Error generating PDF:', error);
+            alert('Error generating PDF. Please try again.');
+            tableWrappers.forEach((wrapper, index) => {
+                const original = originalStyles[index];
+                wrapper.style.maxHeight = original.maxHeight;
+                wrapper.style.overflow = original.overflow;
+                wrapper.style.height = original.height;
+            });
+        });
+    }, 100);
+}
+        function exportToImage() {
+    // Store original table styles
+    const tableWrappers = document.querySelectorAll('.table-wrapper');
+    const originalStyles = [];
+
+    // Temporarily remove height limits and scrolling from tables
+    tableWrappers.forEach((wrapper, index) => {
+        originalStyles[index] = {
+            maxHeight: wrapper.style.maxHeight,
+            overflow: wrapper.style.overflow,
+            height: wrapper.style.height
+        };
+
+        wrapper.style.maxHeight = 'none';
+        wrapper.style.overflow = 'visible';
+        wrapper.style.height = 'auto';
+    });
+
+    // Wait a moment for layout to adjust
+    setTimeout(() => {
+        const dashboardContainer = document.body
+        // getElementById('dashboard-content'); // <-- FIXED
+
+        html2canvas(dashboardContainer, {
+            scale: 1.5,
+            useCORS: true,
+            allowTaint: true,
+            scrollX: 0,
+            scrollY: 0,
+            windowWidth: dashboardContainer.scrollWidth,
+            windowHeight: dashboardContainer.scrollHeight,
+            backgroundColor: '#ffffff'
+        }).then(canvas => {
+            // Create download link
+            const link = document.createElement('a');
+            link.download = `jmeter-dashboard-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.png`;
+            link.href = canvas.toDataURL('image/png', 1.0);
+
+            // Trigger download
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Restore original table styles
+            tableWrappers.forEach((wrapper, index) => {
+                const original = originalStyles[index];
+                wrapper.style.maxHeight = original.maxHeight;
+                wrapper.style.overflow = original.overflow;
+                wrapper.style.height = original.height;
+            });
+        }).catch(error => {
+            console.error('Error generating image:', error);
+            alert('Error generating image. Please try again.');
+
+            // Restore original table styles even on error
+            tableWrappers.forEach((wrapper, index) => {
+                const original = originalStyles[index];
+                wrapper.style.maxHeight = original.maxHeight;
+                wrapper.style.overflow = original.overflow;
+                wrapper.style.height = original.height;
+            });
+        });
+    }, 100);
+}
+        // Initialize the dashboard
+        window.onload = function() {
+            initializeCharts();
+            loadQualityGates();
+            loadTargetScores();
+            
+            // Scroll to top of the page when dashboard opens
+            window.scrollTo(0, 0);
+        };
+    </script>
+</body>
+</html>
